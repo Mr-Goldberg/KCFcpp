@@ -88,6 +88,13 @@ the use of this software, even if advised of the possibility of such damage.
 #include "labdata.hpp"
 #endif
 
+#include <Log.hpp>
+
+namespace
+{
+    const std::string TAG = "KCFTracker";
+}
+
 // Constructor
 KCFTracker::KCFTracker(bool hog, bool fixed_window, bool multiscale, bool lab)
 {
@@ -97,7 +104,7 @@ KCFTracker::KCFTracker(bool hog, bool fixed_window, bool multiscale, bool lab)
     padding = 2.5; 
     //output_sigma_factor = 0.1;
     output_sigma_factor = 0.125;
-
+    lost_object_threshold = 0.55;
 
     if (hog) {    // HOG
         // VOT
@@ -171,7 +178,7 @@ void KCFTracker::init(const cv::Rect &roi, cv::Mat image)
  }
 
 // Update position based on the new frame
-cv::Rect KCFTracker::update(cv::Mat image)
+optional<cv::Rect> KCFTracker::update(cv::Mat image)
 {
     if (_roi.x + _roi.width <= 0) _roi.x = -_roi.width + 1;
     if (_roi.y + _roi.height <= 0) _roi.y = -_roi.height + 1;
@@ -181,33 +188,63 @@ cv::Rect KCFTracker::update(cv::Mat image)
     float cx = _roi.x + _roi.width / 2.0f;
     float cy = _roi.y + _roi.height / 2.0f;
 
+    //
+    // Basic detection
+    //
 
     float peak_value;
     cv::Point2f res = detect(_tmpl, getFeatures(image, 0, 1.0f), peak_value);
 
-    if (scale_step != 1) {
+    //
+    // Scale-change detection
+    //
+
+    float detectedScaleStep = 1.0f;
+    if (scale_step != 1)
+    {
+        //
         // Test at a smaller _scale
+        //
+
         float new_peak_value;
-        cv::Point2f new_res = detect(_tmpl, getFeatures(image, 0, 1.0f / scale_step), new_peak_value);
+        float tryScaleStep = 1.0f / scale_step;
+        cv::Point2f new_res = detect(_tmpl, getFeatures(image, 0, tryScaleStep), new_peak_value);
 
-        if (scale_weight * new_peak_value > peak_value) {
+        if (scale_weight * new_peak_value > peak_value)
+        {
             res = new_res;
             peak_value = new_peak_value;
-            _scale /= scale_step;
-            _roi.width /= scale_step;
-            _roi.height /= scale_step;
+            detectedScaleStep = tryScaleStep;
         }
 
+        //
         // Test at a bigger _scale
-        new_res = detect(_tmpl, getFeatures(image, 0, scale_step), new_peak_value);
+        //
 
-        if (scale_weight * new_peak_value > peak_value) {
+        tryScaleStep = scale_step;
+        new_res = detect(_tmpl, getFeatures(image, 0, tryScaleStep), new_peak_value);
+
+        if (scale_weight * new_peak_value > peak_value)
+        {
             res = new_res;
             peak_value = new_peak_value;
-            _scale *= scale_step;
-            _roi.width *= scale_step;
-            _roi.height *= scale_step;
+            detectedScaleStep = tryScaleStep;
         }
+    }
+
+    // TODO allow 2-3 such frames
+    if (peak_value < lost_object_threshold)
+    {
+        Log::d(TAG, "update() object lost, peak_value: %f", peak_value);
+        return std::experimental::nullopt;
+    }
+
+    if (detectedScaleStep != 1.0f)
+    {
+        Log::d(TAG, "update() adjust scale");
+        _scale *= detectedScaleStep;
+        _roi.width *= detectedScaleStep;
+        _roi.height *= detectedScaleStep;
     }
 
     // Adjust by cell size and _scale
@@ -223,7 +260,7 @@ cv::Rect KCFTracker::update(cv::Mat image)
     cv::Mat x = getFeatures(image, 0);
     train(x, interp_factor);
 
-    return _roi;
+    return RectTools::cvRec2fToRect2i(_roi);
 }
 
 // Detect object in the current frame.

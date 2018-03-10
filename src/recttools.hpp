@@ -134,7 +134,9 @@ inline cv::Mat getGrayImage(cv::Mat img)
     return img;
 }
 
+inline cv::Rect cvRec2fToRect2i(cv::Rect2f rect)
+{
+    return cv::Rect(rect.x, rect.y, rect.width, rect.height);
 }
 
-
-
+}
