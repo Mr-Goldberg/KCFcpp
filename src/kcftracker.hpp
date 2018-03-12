@@ -87,7 +87,6 @@ the use of this software, even if advised of the possibility of such damage.
 #endif
 
 #include <opencv2/opencv.hpp>
-#include <Types.hpp>
 
 class KCFTracker
 {
@@ -99,7 +98,7 @@ public:
     void init(const cv::Rect &roi, cv::Mat image);
     
     // Update position based on the new frame
-    optional<cv::Rect> update(cv::Mat image);
+    cv::Rect update(cv::Mat image, float & outPeakValue);
 
     float interp_factor; // linear interpolation factor for adaptation
     float sigma; // gaussian kernel bandwidth
@@ -111,7 +110,6 @@ public:
     int template_size; // template size
     float scale_step; // scale step for multi-scale estimation
     float scale_weight;  // to downweight detection scores of other scales for added stability
-    float lost_object_threshold; // object lost, if detected peak value is less than this value
 
 protected:
     // Detect object in the current frame.

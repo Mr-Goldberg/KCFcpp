@@ -88,13 +88,6 @@ the use of this software, even if advised of the possibility of such damage.
 #include "labdata.hpp"
 #endif
 
-#include <Log.hpp>
-
-namespace
-{
-    const std::string TAG = "KCFTracker";
-}
-
 // Constructor
 KCFTracker::KCFTracker(bool hog, bool fixed_window, bool multiscale, bool lab)
 {
@@ -104,7 +97,6 @@ KCFTracker::KCFTracker(bool hog, bool fixed_window, bool multiscale, bool lab)
     padding = 2.5; 
     //output_sigma_factor = 0.1;
     output_sigma_factor = 0.125;
-    lost_object_threshold = 0.55;
 
     if (hog) {    // HOG
         // VOT
@@ -178,7 +170,7 @@ void KCFTracker::init(const cv::Rect &roi, cv::Mat image)
  }
 
 // Update position based on the new frame
-optional<cv::Rect> KCFTracker::update(cv::Mat image)
+cv::Rect KCFTracker::update(cv::Mat image, float & outPeakValue)
 {
     if (_roi.x + _roi.width <= 0) _roi.x = -_roi.width + 1;
     if (_roi.y + _roi.height <= 0) _roi.y = -_roi.height + 1;
@@ -232,16 +224,8 @@ optional<cv::Rect> KCFTracker::update(cv::Mat image)
         }
     }
 
-    // TODO allow 2-3 such frames
-    if (peak_value < lost_object_threshold)
-    {
-        Log::d(TAG, "update() object lost, peak_value: %f", peak_value);
-        return std::experimental::nullopt;
-    }
-
     if (detectedScaleStep != 1.0f)
     {
-        Log::d(TAG, "update() adjust scale");
         _scale *= detectedScaleStep;
         _roi.width *= detectedScaleStep;
         _roi.height *= detectedScaleStep;
@@ -260,7 +244,13 @@ optional<cv::Rect> KCFTracker::update(cv::Mat image)
     cv::Mat x = getFeatures(image, 0);
     train(x, interp_factor);
 
-    return RectTools::cvRec2fToRect2i(_roi);
+    //
+    // Assign/return result
+    //
+
+    outPeakValue = peak_value;
+
+    return _roi;
 }
 
 // Detect object in the current frame.
