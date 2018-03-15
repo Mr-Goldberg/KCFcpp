@@ -491,7 +491,7 @@ cv::Mat KCFTracker::getFeatures(const cv::Mat & image, bool inithann, float scal
         }
     }
     else {
-        FeaturesMap = RectTools::getGrayImage(z);
+        FeaturesMap = RectTools::getGrayData(z);
         FeaturesMap -= (float) 0.5; // In Paper;
         size_patch[0] = z.rows;
         size_patch[1] = z.cols;

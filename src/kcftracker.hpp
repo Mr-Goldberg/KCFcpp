@@ -16,7 +16,7 @@ Institute of Systems and Robotics - University of Coimbra / Department Augmented
 
 
 Constructor parameters, all boolean:
-    hog: use HOG features (default), otherwise use raw pixels
+    hog: use HOG features (default), otherwise use raw pixels. Raw - 1 channel 8 bit GRAY (CV_8UC1).
     fixed_window: fix window size (default), otherwise use ROI size (slower but more accurate)
     multiscale: use multi-scale tracking (default; cannot be used with fixed_window = true)
 

@@ -127,9 +127,12 @@ inline cv::Mat subwindow(const cv::Mat &in, const cv::Rect & window, int borderT
     return res;
 }
 
-inline cv::Mat getGrayImage(cv::Mat img)
+/**
+ * Convert 1-channel GRAY image into array of floating point data.
+ * @param img in-out
+ */
+inline cv::Mat getGrayData(cv::Mat img)
 {
-    cv::cvtColor(img, img, CV_BGR2GRAY);
     img.convertTo(img, CV_32F, 1 / 255.f);
     return img;
 }
